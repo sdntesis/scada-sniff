@@ -51,7 +51,7 @@ def manejar_paquete(packet):
 
     # Aquí puedes enviar los contadores a Graylog si lo deseas
     # Por ejemplo:
-    logger.debug("ADUResponses: %d, ADURequests: %d, num_adu_responses, num_adu_requests")
+    logger.debug("ADUResponses: %d, ADURequests: %d", num_adu_responses, num_adu_requests)
 
 
 # Set logs
