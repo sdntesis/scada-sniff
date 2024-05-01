@@ -18,7 +18,7 @@ mapeo_ips = {
 # Contadores para ADUResponses, ADURequests y ADUQueries
 num_adu_responses = 0
 num_adu_requests = 0
-num_adu_queries = 0
+#num_adu_queries = 0
 
 # Definir el filtro de captura para el puerto 502 de Modbus
 def filtro_modbus(packet):
@@ -26,7 +26,7 @@ def filtro_modbus(packet):
 
 # Función para manejar cada paquete capturado
 def manejar_paquete(packet):
-    global num_adu_responses, num_adu_requests, num_adu_queries
+    global num_adu_responses, num_adu_requests #, num_adu_queries
     
     if mb.ModbusADUResponse in packet:
         num_adu_responses += 1
@@ -34,9 +34,9 @@ def manejar_paquete(packet):
     elif mb.ModbusADURequest in packet:
         num_adu_requests += 1
         tipo_mensaje = "ADURequest"
-    elif mb.ModbusADUQuery in packet:  # Nueva condición para los paquetes de tipo query
-        num_adu_queries += 1
-        tipo_mensaje = "ADUQuery"
+    # elif mb.ModbusADUQuery in packet:  # Nueva condición para los paquetes de tipo query
+    #     num_adu_queries += 1
+    #     tipo_mensaje = "ADUQuery"
     else:
         return
 
@@ -51,7 +51,7 @@ def manejar_paquete(packet):
 
     # Aquí puedes enviar los contadores a Graylog si lo deseas
     # Por ejemplo:
-    logger.debug("ADUResponses: %d, ADURequests: %d, ADUQueries: %d", num_adu_responses, num_adu_requests, num_adu_queries)
+    logger.debug("ADUResponses: %d, ADURequests: %d, num_adu_responses, num_adu_requests)
 
 # Set logs
 logger = logging.getLogger("gelf")
