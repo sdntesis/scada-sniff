@@ -25,8 +25,23 @@ def filtro_modbus(packet):
     return TCP in packet and (packet[TCP].sport == 502 or packet[TCP].dport == 502)
 
 # Función para manejar cada paquete capturado
+# def manejar_paquete(packet):
+#     global num_adu_responses, num_adu_requests #, num_adu_queries
+    
+#     if mb.ModbusADUResponse in packet:
+#         num_adu_responses += 1
+#         tipo_mensaje = "ADUResponse"
+#     elif mb.ModbusADURequest in packet:
+#         num_adu_requests += 1
+#         tipo_mensaje = "ADURequest"
+#     # elif mb.ModbusADUQuery in packet:  # Nueva condición para los paquetes de tipo query
+#     #     num_adu_queries += 1
+#     #     tipo_mensaje = "ADUQuery"
+#     else:
+#         return
+# Función para manejar cada paquete capturado
 def manejar_paquete(packet):
-    global num_adu_responses, num_adu_requests #, num_adu_queries
+    global num_adu_responses, num_adu_requests, num_adu_queries
     
     if mb.ModbusADUResponse in packet:
         num_adu_responses += 1
@@ -34,25 +49,28 @@ def manejar_paquete(packet):
     elif mb.ModbusADURequest in packet:
         num_adu_requests += 1
         tipo_mensaje = "ADURequest"
-    # elif mb.ModbusADUQuery in packet:  # Nueva condición para los paquetes de tipo query
-    #     num_adu_queries += 1
-    #     tipo_mensaje = "ADUQuery"
     else:
-        return
+        # Verificar si es un paquete de tipo query
+        if packet.haslayer(mb.ModbusPDU):
+            pdu = packet[mb.ModbusPDU]
+            funcode = pdu.funcode
+            if 1 <= funcode <= 4:  # Consideramos como query los funcodes 1 a 4
+                num_adu_queries += 1
+                tipo_mensaje = "ADUQuery"
+            else:
+                return
+        else:
+            return
 
     ipsrc = packet[IP].src
     ipdest = packet[IP].dst
 
-    # Obtener el nombre asociado a la dirección IP de origen y destino
     nombre_ipsrc = mapeo_ips.get(ipsrc, "Desconocido")
     nombre_ipdest = mapeo_ips.get(ipdest, "Desconocido")
 
     logger.debug("Mensaje Modbus: Tipo=%s, IP_SRC=%s(%s), IP_DST=%s(%s)", tipo_mensaje, ipsrc, nombre_ipsrc, ipdest, nombre_ipdest)
 
-    # Aquí puedes enviar los contadores a Graylog si lo deseas
-    # Por ejemplo:
-    logger.debug("ADUResponses: %d, ADURequests: %d", num_adu_responses, num_adu_requests)
-
+    logger.debug("ADUResponses: %d, ADURequests: %d, ADUQueries: %d", num_adu_responses, num_adu_requests, num_adu_queries)
 
 # Set logs
 logger = logging.getLogger("gelf")
