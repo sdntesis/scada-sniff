@@ -1,3 +1,5 @@
+#define PY_SSIZE_T_CLEAN  // Definir la macro antes de importar cualquier otro módulo
+#include <Python.h>       // Importar el encabezado de Python
 import pcapy
 
 pcap_file = "captura_modbus.pcap"
