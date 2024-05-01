@@ -25,21 +25,6 @@ def filtro_modbus(packet):
     return TCP in packet and (packet[TCP].sport == 502 or packet[TCP].dport == 502)
 
 # Función para manejar cada paquete capturado
-# def manejar_paquete(packet):
-#     global num_adu_responses, num_adu_requests #, num_adu_queries
-    
-#     if mb.ModbusADUResponse in packet:
-#         num_adu_responses += 1
-#         tipo_mensaje = "ADUResponse"
-#     elif mb.ModbusADURequest in packet:
-#         num_adu_requests += 1
-#         tipo_mensaje = "ADURequest"
-#     # elif mb.ModbusADUQuery in packet:  # Nueva condición para los paquetes de tipo query
-#     #     num_adu_queries += 1
-#     #     tipo_mensaje = "ADUQuery"
-#     else:
-#         return
-# Función para manejar cada paquete capturado
 def manejar_paquete(packet):
     global num_adu_responses, num_adu_requests, num_adu_queries
     
