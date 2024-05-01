@@ -18,7 +18,7 @@ mapeo_ips = {
 # Contadores para ADUResponses, ADURequests y ADUQueries
 num_adu_responses = 0
 num_adu_requests = 0
-#num_adu_queries = 0
+num_adu_queries = 0
 
 # Definir el filtro de captura para el puerto 502 de Modbus
 def filtro_modbus(packet):
