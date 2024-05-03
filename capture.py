@@ -36,6 +36,8 @@ def manejar_paquete(packet):
             num_adu_responses += 1
             tipo_mensaje = "ADUResponse"
         else:
+        print("Paquete Modbus capturado:")
+        print(packet.summary())
             return
         
         nombre_ipsrc = mapeo_ips.get(ipsrc, "Desconocido")
