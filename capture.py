@@ -15,7 +15,6 @@ mapeo_ips = {
 
 # Contadores para ADUResponses, ADURequests y ADUQueries
 num_adu_responses = 0
-num_adu_requests = 0
 num_adu_queries = 0
 
 # Definir el filtro de captura para el puerto 502 de Modbus
@@ -24,14 +23,14 @@ def filtro_modbus(packet):
 
 # Función para manejar cada paquete capturado
 def manejar_paquete(packet):
-    global num_adu_responses, num_adu_requests, num_adu_queries
+    global num_adu_responses, num_adu_queries
     
     if TCP in packet:
         ipsrc = packet[IP].src
         ipdest = packet[IP].dst
         
         if packet[TCP].dport == 502:
-            num_adu_requests += 1
+            num_adu_queries += 1
             tipo_mensaje = "ADUQuery"
         elif packet[TCP].sport == 502:
             num_adu_responses += 1
@@ -44,10 +43,6 @@ def manejar_paquete(packet):
         
         logger.debug("Mensaje Modbus: Tipo=%s, IP_SRC=%s(%s), IP_DST=%s(%s)", tipo_mensaje, ipsrc, nombre_ipsrc, ipdest, nombre_ipdest)
         
-        # Todos los paquetes capturados ahora se consideran como consultas (queries)
-        num_adu_queries += 1
-        tipo_mensaje = "ADUQuery"
-        logger.debug("Mensaje Modbus: Tipo=%s, IP_SRC=%s(%s), IP_DST=%s(%s)", tipo_mensaje, ipsrc, nombre_ipsrc, ipdest, nombre_ipdest)
 
 # Set logs
 logger = logging.getLogger("gelf")
