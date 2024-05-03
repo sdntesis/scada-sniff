@@ -17,9 +17,9 @@ mapeo_ips = {
 num_adu_responses = 0
 num_adu_queries = 0
 
-# Definir el filtro de captura para el puerto 502 de Modbus
-def filtro_modbus(packet):
-    return TCP in packet and (packet[TCP].sport == 502 or packet[TCP].dport == 502)
+# Definir el filtro de captura para todos los paquetes TCP
+def filtro_tcp(packet):
+    return TCP in packet
 
 # Función para manejar cada paquete capturado
 def manejar_paquete(packet):
@@ -42,6 +42,10 @@ def manejar_paquete(packet):
         nombre_ipdest = mapeo_ips.get(ipdest, "Desconocido")
         
         logger.debug("Mensaje Modbus: Tipo=%s, IP_SRC=%s(%s), IP_DST=%s(%s)", tipo_mensaje, ipsrc, nombre_ipsrc, ipdest, nombre_ipdest)
+        logger.debug("Puerto origen: %s, Puerto destino: %s", packet[TCP].sport, packet[TCP].dport)
+        
+        # Enviar el número de queries y responses en los registros de registro
+        logger.debug("Número de queries: %d, Número de responses: %d", num_adu_queries, num_adu_responses)
         
 
 # Set logs
@@ -52,4 +56,4 @@ handler = GELFUDPHandler(host="127.0.0.1", port=5514)
 logger.addHandler(handler)
 
 # Iniciar la captura
-sniff(prn=manejar_paquete, lfilter=filtro_modbus, iface="ens36", store=False)
+sniff(prn=manejar_paquete, lfilter=filtro_tcp, iface="ens36", store=False)
