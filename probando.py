@@ -3,7 +3,7 @@ load_contrib("modbus")
 
 def is_modbus_query(packet):
     if packet.haslayer(ModbusTCP):
-        if packet[ModbusTCP].funcCode < 128:  # Funciones menores a 128 son consultas
+        if packet[ModbusTCP].func_code < 128:  # Funciones menores a 128 son consultas
             return True
     return False
 
