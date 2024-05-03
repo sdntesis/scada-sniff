@@ -2,8 +2,8 @@ from scapy.all import *
 load_contrib("modbus")
 
 def is_modbus_query(packet):
-    if packet.haslayer(ModbusTCP):
-        if packet[ModbusTCP].func_code < 128:  # Funciones menores a 128 son consultas
+    if packet.haslayer(Modbus):
+        if packet[Modbus].func_code < 128:  # Funciones menores a 128 son consultas
             return True
     return False
 
