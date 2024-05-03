@@ -32,7 +32,7 @@ def manejar_paquete(packet):
         
         if packet[TCP].dport == 502:
             num_adu_requests += 1
-            tipo_mensaje = "ADURequest"
+            tipo_mensaje = "ADUQuery"
         elif packet[TCP].sport == 502:
             num_adu_responses += 1
             tipo_mensaje = "ADUResponse"
@@ -44,11 +44,10 @@ def manejar_paquete(packet):
         
         logger.debug("Mensaje Modbus: Tipo=%s, IP_SRC=%s(%s), IP_DST=%s(%s)", tipo_mensaje, ipsrc, nombre_ipsrc, ipdest, nombre_ipdest)
         
-        # Verificar si es un paquete de tipo query
-        if packet.haslayer("ModbusADURequest") and packet["ModbusADURequest"].funcode in [1, 2, 3, 4]:
-            num_adu_queries += 1
-            tipo_mensaje = "ADUQuery"
-            logger.debug("Mensaje Modbus: Tipo=%s, IP_SRC=%s(%s), IP_DST=%s(%s)", tipo_mensaje, ipsrc, nombre_ipsrc, ipdest, nombre_ipdest)
+        # Todos los paquetes capturados ahora se consideran como consultas (queries)
+        num_adu_queries += 1
+        tipo_mensaje = "ADUQuery"
+        logger.debug("Mensaje Modbus: Tipo=%s, IP_SRC=%s(%s), IP_DST=%s(%s)", tipo_mensaje, ipsrc, nombre_ipsrc, ipdest, nombre_ipdest)
 
 # Set logs
 logger = logging.getLogger("gelf")
