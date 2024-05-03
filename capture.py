@@ -32,13 +32,14 @@ def manejar_paquete(packet):
         if packet[TCP].dport == 502:
             num_adu_queries += 1
             tipo_mensaje = "ADUQuery"
+            print("Paquete Modbus capturado - ADUQuery:")
+            print(packet.summary())
         elif packet[TCP].sport == 502:
             num_adu_responses += 1
             tipo_mensaje = "ADUResponse"
-        else:
-        print("Paquete Modbus capturado:")
-        print(packet.summary())
-            return
+            print("Paquete Modbus capturado - ADUResponse:")
+            print(packet.summary())
+
         
         nombre_ipsrc = mapeo_ips.get(ipsrc, "Desconocido")
         nombre_ipdest = mapeo_ips.get(ipdest, "Desconocido")
