@@ -1,21 +1,16 @@
-#define PY_SSIZE_T_CLEAN  // Definir la macro antes de importar cualquier otro módulo
-#include <Python.h>       // Importar el encabezado de Python
-import pcapy
+from scapy.all import *
+load_contrib("modbus")
 
-pcap_file = "captura_modbus.pcap"
+def is_modbus_query(packet):
+    if packet.haslayer(ModbusTCP):
+        if packet[ModbusTCP].funcCode < 128:  # Funciones menores a 128 son consultas
+            return True
+    return False
 
-# Abre el archivo pcap para lectura
-pcap = pcapy.open_offline(pcap_file)
+def handle_packet(packet):
+    if is_modbus_query(packet):
+        print("Capturado un paquete de consulta Modbus:")
+        packet.show()
 
-# Lee cada paquete del archivo pcap
-while True:
-    # Lee el siguiente paquete
-    header, packet = pcap.next()
-
-    # Verifica si hemos llegado al final del archivo
-    if not packet:
-        break
-
-    # Haz lo que necesites con el paquete, por ejemplo, imprimir su contenido
-    print(packet)
-
+# Configura Scapy para escuchar en la interfaz ens36 y filtrar solo consultas Modbus
+sniff(prn=handle_packet, lfilter=is_modbus_query, iface="ens36")
