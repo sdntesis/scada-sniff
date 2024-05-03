@@ -1,59 +1,78 @@
-import socket
-import threading
-from time import sleep
+from scapy.all import sniff, TCP, IP
+import logging
+from graypy import GELFUDPHandler
 
-# Dirección IP y puerto del servidor Modbus
-SERVER_IP = "192.168.222.9"  # Cambia esto por la dirección IP de tu servidor Modbus
-SERVER_PORT = 502
+# Diccionario de mapeo de direcciones IP a nombres
+mapeo_ips = {
+    "192.168.222.9": "PLC apis1",
+    "192.168.222.11": "PLC1 apis2",
+    "192.168.222.12": "PLC2 apis2",
+    "192.168.222.13": "PLC3 apis2",
+    "192.168.222.14": "PLC4 apis2",
+    "192.168.222.15": "PLC apis3",
+    "192.168.222.55": "SCADA"
+}
 
-# Función para simular el envío de queries
-def enviar_queries():
-    # Crear un socket TCP
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-        # Conectar al servidor Modbus
-        sock.connect((SERVER_IP, SERVER_PORT))
+# Contadores para ADUResponses, ADURequests y ADUQueries
+num_adu_responses = 0
+num_adu_queries = 0
+
+# Definir el filtro de captura para todos los paquetes TCP
+def filtro_tcp(packet):
+    return TCP in packet
+
+# Función para manejar cada paquete capturado
+def manejar_paquete(packet):
+    global num_adu_responses, num_adu_queries
+    
+    tipo_mensaje = None  # Inicializar la variable tipo_mensaje
+    
+    if TCP in packet:
+        ipsrc = packet[IP].src
+        ipdest = packet[IP].dst
         
-        for i in range(5):  # Enviar 5 queries
-            query_data = b"Mensaje de query " + bytes(str(i+1), "utf-8")
-            print(f"Enviando query {i+1}: {query_data.decode('utf-8')}")
-            # Enviar la query al servidor
-            sock.sendall(query_data)
-            sleep(1)  # Esperar 1 segundo entre cada query
+        if packet[TCP].dport == 502:
+            num_adu_queries += 1
+            tipo_mensaje = "ADUQuery"
+            print("Paquete Modbus capturado - ADUQuery:")
+            print(packet.summary())
+            # Aquí puedes agregar el código para manejar los queries recibidos
+            
+        elif packet[TCP].sport == 502:
+            num_adu_responses += 1
+            tipo_mensaje = "ADUResponse"
+            print("Paquete Modbus capturado - ADUResponse:")
+            print(packet.summary())
+    
+    if tipo_mensaje is not None:  # Verificar si tipo_mensaje ha sido asignado antes de utilizarlo
+        nombre_ipsrc = mapeo_ips.get(ipsrc, "Desconocido")
+        nombre_ipdest = mapeo_ips.get(ipdest, "Desconocido")
+        logger.debug("Mensaje Modbus: Tipo=%s, IP_SRC=%s(%s), IP_DST=%s(%s)", tipo_mensaje, ipsrc, nombre_ipsrc, ipdest, nombre_ipdest)
 
-# Función para manejar las respuestas recibidas
-def manejar_respuestas(conn):
-    while True:
-        # Recibir datos del servidor
-        data = conn.recv(1024)
-        if not data:
-            break
-        print("Respuesta recibida:", data.decode('utf-8'))
 
-# Función principal
-def main():
-    # Iniciar hilo para enviar queries
-    query_thread = threading.Thread(target=enviar_queries)
-    query_thread.start()
+        
+        nombre_ipsrc = mapeo_ips.get(ipsrc, "Desconocido")
+        nombre_ipdest = mapeo_ips.get(ipdest, "Desconocido")
+        
+        logger.debug("Mensaje Modbus: Tipo=%s, IP_SRC=%s(%s), IP_DST=%s(%s)", tipo_mensaje, ipsrc, nombre_ipsrc, ipdest, nombre_ipdest)
+        logger.debug("Puerto origen: %s, Puerto destino: %s", packet[TCP].sport, packet[TCP].dport)
+        
+        # Enviar el número de queries y responses en los registros de registro
+        logger.debug("Número de queries: %d, Número de responses: %d", num_adu_queries, num_adu_responses)
+        
+        # Imprimir los mensajes enviados
+        print("Mensaje enviado:")
+        print(f"Tipo: {tipo_mensaje}")
+        print(f"IP_SRC: {ipsrc} ({nombre_ipsrc}), IP_DST: {ipdest} ({nombre_ipdest})")
+        print(f"Puerto origen: {packet[TCP].sport}, Puerto destino: {packet[TCP].dport}")
+        print(f"Número de queries: {num_adu_queries}, Número de responses: {num_adu_responses}")
 
-    # Crear un socket TCP para recibir respuestas
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server_socket:
-        # Enlace y escucha en el puerto
-        server_socket.bind(("0.0.0.0", 0))  # Enlaza a cualquier dirección local y puerto disponible
-        server_socket.listen()
+# Set logs
+logger = logging.getLogger("gelf")
+logger.setLevel(logging.DEBUG)
 
-        print("Esperando conexiones de respuesta...")
-        conn, addr = server_socket.accept()
-        print("Conexión de respuesta aceptada desde:", addr)
+handler = GELFUDPHandler(host="127.0.0.1", port=5514)
+logger.addHandler(handler)
 
-        # Iniciar un hilo para manejar las respuestas
-        response_thread = threading.Thread(target=manejar_respuestas, args=(conn,))
-        response_thread.start()
-
-        # Esperar a que el hilo de las queries termine
-        query_thread.join()
-
-        # Esperar a que el hilo de las respuestas termine
-        response_thread.join()
-
-if __name__ == "__main__":
-    main()
+# Iniciar la captura
+sniff(prn=manejar_paquete, lfilter=filtro_tcp, iface="ens36", store=False)
