@@ -47,6 +47,12 @@ def manejar_paquete(packet):
         # Enviar el número de queries y responses en los registros de registro
         logger.debug("Número de queries: %d, Número de responses: %d", num_adu_queries, num_adu_responses)
         
+        # Imprimir los mensajes enviados
+        print("Mensaje enviado:")
+        print(f"Tipo: {tipo_mensaje}")
+        print(f"IP_SRC: {ipsrc} ({nombre_ipsrc}), IP_DST: {ipdest} ({nombre_ipdest})")
+        print(f"Puerto origen: {packet[TCP].sport}, Puerto destino: {packet[TCP].dport}")
+        print(f"Número de queries: {num_adu_queries}, Número de responses: {num_adu_responses}")
 
 # Set logs
 logger = logging.getLogger("gelf")
