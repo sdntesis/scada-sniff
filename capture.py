@@ -25,6 +25,8 @@ def filtro_tcp(packet):
 def manejar_paquete(packet):
     global num_adu_responses, num_adu_queries
     
+    tipo_mensaje = None  # Inicializar la variable tipo_mensaje
+    
     if TCP in packet:
         ipsrc = packet[IP].src
         ipdest = packet[IP].dst
@@ -39,6 +41,12 @@ def manejar_paquete(packet):
             tipo_mensaje = "ADUResponse"
             print("Paquete Modbus capturado - ADUResponse:")
             print(packet.summary())
+    
+    if tipo_mensaje is not None:  # Verificar si tipo_mensaje ha sido asignado antes de utilizarlo
+        nombre_ipsrc = mapeo_ips.get(ipsrc, "Desconocido")
+        nombre_ipdest = mapeo_ips.get(ipdest, "Desconocido")
+        logger.debug("Mensaje Modbus: Tipo=%s, IP_SRC=%s(%s), IP_DST=%s(%s)", tipo_mensaje, ipsrc, nombre_ipsrc, ipdest, nombre_ipdest)
+
 
         
         nombre_ipsrc = mapeo_ips.get(ipsrc, "Desconocido")
