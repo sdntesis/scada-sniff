@@ -9,6 +9,7 @@ Documentación: Código de Sniffeo del servidor SCADA, protocolo Modbus.
 Para identificar la actividad de los PLCs. 
 """
 
+
 from scapy.all import sniff, TCP, IP
 import logging
 from graypy import GELFUDPHandler
@@ -25,7 +26,7 @@ mapeo_ips = {
 }
 
 # Diccionario para mantener el recuento de Rs y ADURequests para cada PLC
-recuento_plc = {plc: {"R": 0, "ADUQuery": 0} for plc in mapeo_ips.values()}
+recuento_plc = {plc: {"R": 0, "Q": 0} for plc in mapeo_ips.values()}
 
 # Definir el filtro de captura para todos los paquetes TCP
 def filtro_tcp(packet):
