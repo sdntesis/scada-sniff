@@ -1,6 +1,20 @@
 from scapy.all import sniff, TCP, IP
 import logging
 from graypy import GELFUDPHandler
+import threading
+import time
+
+# Documentación
+print("""
+Universidad de Cuenca
+Facultad de Ingeniería
+Trabajo de Titulación para Ingeniero de Telecomunicaciones
+Tesistas: Lourdes Gutiérrez, Claudia Padilla
+Junio 2024
+
+Documentación: Código de Sniffeo del servidor SCADA, protocolo Modbus.
+Para identificar la actividad de los PLCs.
+""")
 
 # Diccionario de mapeo de direcciones IP a nombres
 mapeo_ips = {
@@ -13,17 +27,12 @@ mapeo_ips = {
     "192.168.222.55": "SCADA"
 }
 
-# Contadores para ADUResponses, ADURequests y ADUQueries
-num_adu_responses = 0
-num_adu_queries = 0
-
-# Definir el filtro de captura para todos los paquetes TCP
-def filtro_tcp(packet):
-    return TCP in packet
+# Diccionario para mantener el recuento de Rs y ADURequests para cada PLC
+recuento_plc = {plc: {"R": 0, "Q": 0} for plc in mapeo_ips.values()}
 
 # Función para manejar cada paquete capturado
 def manejar_paquete(packet):
-    global num_adu_responses, num_adu_queries
+    global recuento_plc
     
     tipo_mensaje = None  # Inicializar la variable tipo_mensaje
     
@@ -32,45 +41,49 @@ def manejar_paquete(packet):
         ipdest = packet[IP].dst
         
         if packet[TCP].dport == 502:
-            num_adu_queries += 1
-            tipo_mensaje = "ADUQuery"
-            print("Paquete Modbus capturado - ADUQuery:")
-            print(packet.summary())
+            tipo_mensaje = "Q"
         elif packet[TCP].sport == 502:
-            num_adu_responses += 1
-            tipo_mensaje = "ADUResponse"
-            print("Paquete Modbus capturado - ADUResponse:")
-            print(packet.summary())
-    
-    if tipo_mensaje is not None:  # Verificar si tipo_mensaje ha sido asignado antes de utilizarlo
-        nombre_ipsrc = mapeo_ips.get(ipsrc, "Desconocido")
-        nombre_ipdest = mapeo_ips.get(ipdest, "Desconocido")
-        logger.debug("Mensaje Modbus: Tipo=%s, IP_SRC=%s(%s), IP_DST=%s(%s)", tipo_mensaje, ipsrc, nombre_ipsrc, ipdest, nombre_ipdest)
+            tipo_mensaje = "R"
+        
+        if tipo_mensaje:
+            plc_src = mapeo_ips.get(ipsrc, "Desconocido")
+            plc_dest = mapeo_ips.get(ipdest, "Desconocido")
+            
+            # Incrementar el recuento del tipo de mensaje para el PLC origen y destino
+            if plc_src in recuento_plc:
+                recuento_plc[plc_src][tipo_mensaje] += 1
+            if plc_dest in recuento_plc:
+                recuento_plc[plc_dest][tipo_mensaje] += 1
+# Función para enviar el recuento por minuto y reiniciar el recuento
+def enviar_conteo_por_minuto():
+    global recuento_plc
+    mensaje_por_minuto = "Recuento de queries (Q) y responses (R) para todos los PLCs por minuto:\n"
+    for plc_src, stats in recuento_plc.items():
+        mensaje_por_minuto += f"Q {plc_src}: {stats['Q']}, R {plc_src}: {stats['R']}\n"
+    print("Enviando recuento por minuto:\n" + mensaje_por_minuto)
+    logger.debug(mensaje_por_minuto)
+    # Reiniciar el recuento por minuto
+    reiniciar_recuento_por_minuto()
 
-
-        
-        nombre_ipsrc = mapeo_ips.get(ipsrc, "Desconocido")
-        nombre_ipdest = mapeo_ips.get(ipdest, "Desconocido")
-        
-        logger.debug("Mensaje Modbus: Tipo=%s, IP_SRC=%s(%s), IP_DST=%s(%s)", tipo_mensaje, ipsrc, nombre_ipsrc, ipdest, nombre_ipdest)
-        logger.debug("Puerto origen: %s, Puerto destino: %s", packet[TCP].sport, packet[TCP].dport)
-        
-        # Enviar el número de queries y responses en los registros de registro
-        logger.debug("Número de queries: %d, Número de responses: %d", num_adu_queries, num_adu_responses)
-        
-        # Imprimir los mensajes enviados
-        print("Mensaje enviado:")
-        print(f"Tipo: {tipo_mensaje}")
-        print(f"IP_SRC: {ipsrc} ({nombre_ipsrc}), IP_DST: {ipdest} ({nombre_ipdest})")
-        print(f"Puerto origen: {packet[TCP].sport}, Puerto destino: {packet[TCP].dport}")
-        print(f"Número de queries: {num_adu_queries}, Número de responses: {num_adu_responses}")
+# Función para reiniciar el recuento por minuto
+def reiniciar_recuento_por_minuto():
+    global recuento_plc
+    recuento_plc = {plc: {"R": 0, "Q": 0} for plc in mapeo_ips.values()}
 
 # Set logs
 logger = logging.getLogger("gelf")
 logger.setLevel(logging.DEBUG)
 
-handler = GELFUDPHandler(host="127.0.0.1", port=5514)
+handler = GELFUDPHandler(host="192.168.222.66", port=5514)
 logger.addHandler(handler)
 
-# Iniciar la captura
-sniff(prn=manejar_paquete, lfilter=filtro_tcp, iface="ens36", store=False)
+# Función para capturar paquetes durante un minuto y luego enviar el recuento por minuto
+def capturar_y_enviar_por_minuto():
+    start_time = time.time()
+    while time.time() - start_time < 30:
+        sniff(prn=manejar_paquete, lfilter=lambda x: TCP in x, iface="Ethernet", timeout=1, store=False)
+    enviar_conteo_por_minuto()
+    threading.Timer(30, capturar_y_enviar_por_minuto).start()
+
+# Iniciar el proceso de captura y envío por minuto
+capturar_y_enviar_por_minuto()
