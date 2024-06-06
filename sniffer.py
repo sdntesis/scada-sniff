@@ -8,11 +8,11 @@ Junio 2024
 Documentación: Código de Sniffeo del servidor SCADA, protocolo Modbus.
 Para identificar la actividad de los PLCs. 
 """
-
-
 from scapy.all import sniff, TCP, IP
 import logging
 from graypy import GELFUDPHandler
+import threading
+import time
 
 # Diccionario de mapeo de direcciones IP a nombres
 mapeo_ips = {
@@ -26,17 +26,13 @@ mapeo_ips = {
 }
 
 # Diccionario para mantener el recuento de Rs y ADURequests para cada PLC
-recuento_plc = {plc: {"R": 0, "Q": 0} for plc in mapeo_ips.values()}
-
-# Definir el filtro de captura para todos los paquetes TCP
-def filtro_tcp(packet):
-    return TCP in packet
+recuento_plc_minuto = {plc: {"R": 0, "Q": 0} for plc in mapeo_ips.values()}
 
 # Función para manejar cada paquete capturado
 def manejar_paquete(packet):
-    global recuento_plc
+    global recuento_plc_minuto
     
-    tipo_mensaje = None  # Inicializar la variable tipo_mensaje
+    tipo_mensaje = None
     
     if TCP in packet:
         ipsrc = packet[IP].src
@@ -51,17 +47,26 @@ def manejar_paquete(packet):
             plc_src = mapeo_ips.get(ipsrc, "Desconocido")
             plc_dest = mapeo_ips.get(ipdest, "Desconocido")
             
-            # Incrementar el recuento del tipo de mensaje para el PLC origen y destino
-            recuento_plc[plc_src][tipo_mensaje] += 1
-            recuento_plc[plc_dest][tipo_mensaje] += 1
+            if plc_src in recuento_plc_minuto:
+                recuento_plc_minuto[plc_src][tipo_mensaje] += 1
+            if plc_dest in recuento_plc_minuto:
+                recuento_plc_minuto[plc_dest][tipo_mensaje] += 1
 
-    # Construir el mensaje completo con toda la información acumulada
-    mensaje = "Recuento de queries (Q) y responses (R) para todos los PLCs:\n"
-    for plc_src, stats in recuento_plc.items():
-        mensaje += f"Q {plc_src}: {stats['Q']}, R {plc_src}: {stats['R']}\n"
+# Función para enviar el recuento por minuto y reiniciar el recuento
+def enviar_conteo_por_minuto():
+    global recuento_plc_minuto
+    mensaje_por_minuto = "Recuento de queries (Q) y responses (R) para todos los PLCs por minuto:\n"
+    for plc_src, stats in recuento_plc_minuto.items():
+        mensaje_por_minuto += f"Q {plc_src}: {stats['Q']}, R {plc_src}: {stats['R']}\n"
+    logger.debug(mensaje_por_minuto)
+    reiniciar_recuento_por_minuto()
 
-    # Enviar el mensaje completo al servidor de registro como un solo mensaje
-    logger.debug(mensaje)
+# Función para reiniciar el recuento por minuto
+def reiniciar_recuento_por_minuto():
+    global recuento_plc_minuto
+    for plc_stats in recuento_plc_minuto.values():
+        plc_stats["R"] = 0
+        plc_stats["Q"] = 0
 
 # Set logs
 logger = logging.getLogger("gelf")
@@ -70,14 +75,5 @@ logger.setLevel(logging.DEBUG)
 handler = GELFUDPHandler(host="192.168.222.66", port=5514)
 logger.addHandler(handler)
 
-# Iniciar la captura
-sniff(prn=manejar_paquete, lfilter=filtro_tcp, iface="Ethernet", store=False)
-
-
-# Construir el mensaje completo con toda la información acumulada
-mensaje = ""
-for plc_src, stats in recuento_plc.items():
-    mensaje += f"{plc_src}: Queries={stats['Q']}, Responses={stats['R']}\n"
-
-# Enviar el mensaje completo al servidor de registro como un solo mensaje
-logger.debug(mensaje)
+# Iniciar el proceso de captura y envío por minuto
+threading.Thread(target=capturar_y_enviar_por_minuto).start()
